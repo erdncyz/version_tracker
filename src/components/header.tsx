@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Bell, Settings, Plus } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { Search, Bell, Settings, Plus, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { SearchSuggestions } from '@/components/search-suggestions';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -15,10 +18,46 @@ interface HeaderProps {
 
 export function Header({ onSearch, onAddProject, unreadNotifications = 0 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
+    setShowSuggestions(false);
+  };
+
+  const handleSuggestionClick = (term: string) => {
+    setSearchQuery(term);
+    onSearch(term);
+    setShowSuggestions(false);
+  };
+
+  const handleInputFocus = () => {
+    setShowSuggestions(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setShowSuggestions(e.target.value.length >= 3);
+  };
+
+  const handleInputBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/' });
+  };
+
+  const handleSettings = () => {
+    router.push('/settings');
+  };
+
+  const handleNotifications = () => {
+    router.push('/notifications');
   };
 
   return (
@@ -35,54 +74,91 @@ export function Header({ onSearch, onAddProject, unreadNotifications = 0 }: Head
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-md mx-8">
+        <div className="flex-1 max-w-md mx-8 relative z-[9998]">
           <form onSubmit={handleSearch} className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               type="text"
               placeholder="Search repositories..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleInputChange}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               className="pl-10 pr-4"
             />
           </form>
+          <SearchSuggestions
+            query={searchQuery}
+            onSelect={handleSuggestionClick}
+            isVisible={showSuggestions}
+            onClose={() => setShowSuggestions(false)}
+          />
         </div>
 
         {/* Actions */}
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onAddProject}
-            className="flex items-center space-x-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Project</span>
-          </Button>
-
-          {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            {unreadNotifications > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+          {session ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAddProject}
+                className="flex items-center space-x-2"
               >
-                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-              </Badge>
-            )}
-          </Button>
+                <Plus className="h-4 w-4" />
+                <span>Add Project</span>
+              </Button>
 
-          {/* Settings */}
-          <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
-          </Button>
+              {/* Notifications */}
+              <Button variant="ghost" size="icon" className="relative" onClick={handleNotifications}>
+                <Bell className="h-5 w-5" />
+                {unreadNotifications > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                  >
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Badge>
+                )}
+              </Button>
 
-          {/* User Avatar */}
-          <Avatar className="h-8 w-8">
-            <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
-            <AvatarFallback>U</AvatarFallback>
-          </Avatar>
+              {/* Settings */}
+              <Button variant="ghost" size="icon" onClick={handleSettings}>
+                <Settings className="h-5 w-5" />
+              </Button>
+
+              {/* User Avatar with Dropdown */}
+              <div className="flex items-center space-x-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={session.user?.image || ""} alt={session.user?.name || "User"} />
+                  <AvatarFallback>
+                    {session.user?.name?.charAt(0) || session.user?.email?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{session.user?.name || session.user?.email}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSignOut}
+                    className="h-auto p-0 text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    <LogOut className="h-3 w-3 mr-1" />
+                    Sign out
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" asChild>
+                <a href="/auth/signin">Sign In</a>
+              </Button>
+              <Button asChild>
+                <a href="/auth/signup">Sign Up</a>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -16,6 +16,22 @@ export interface Project {
   createdAt: Date;
   updatedAt: Date;
   versions?: Version[];
+  latestRelease?: {
+    id: number;
+    tag_name: string;
+    name: string | null;
+    body: string | null;
+    prerelease: boolean;
+    draft: boolean;
+    published_at: string | null;
+    created_at: string;
+    html_url: string;
+    assets: Array<{
+      name: string;
+      download_count: number;
+      size: number;
+    }>;
+  } | null;
 }
 
 export interface Version {

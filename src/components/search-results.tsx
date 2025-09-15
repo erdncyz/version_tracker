@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { ProjectCard } from './project-card';
+import { SearchSuggestions } from './search-suggestions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,6 +30,18 @@ interface SearchResult {
   pushed_at: string;
   isTracked: boolean;
   trackedProjectId: string | null;
+  latestRelease?: {
+    id: number;
+    tag_name: string;
+    name: string | null;
+    body: string | null;
+    prerelease: boolean;
+    draft: boolean;
+    published_at: string | null;
+    created_at: string;
+    html_url: string;
+    assets: any[];
+  } | null;
 }
 
 interface SearchResultsProps {
@@ -44,6 +57,9 @@ export function SearchResults({ query, onTrack, onUntrack, onRefresh }: SearchRe
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const searchRepositories = async (searchQuery: string, pageNum: number = 1) => {
     if (!searchQuery.trim()) return;
@@ -71,7 +87,12 @@ export function SearchResults({ query, onTrack, onUntrack, onRefresh }: SearchRe
       setHasMore(data.hasMore);
       setPage(pageNum);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Search error:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An error occurred while searching');
+      }
     } finally {
       setLoading(false);
     }
@@ -91,6 +112,37 @@ export function SearchResults({ query, onTrack, onUntrack, onRefresh }: SearchRe
     if (hasMore && !loading) {
       searchRepositories(query, page + 1);
     }
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    setShowSuggestions(value.length >= 3);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchInput.trim()) {
+      setShowSuggestions(false);
+      searchRepositories(searchInput.trim(), 1);
+    }
+  };
+
+  const handleSuggestionSelect = (fullName: string) => {
+    setSearchInput(fullName);
+    setShowSuggestions(false);
+    searchRepositories(fullName, 1);
+  };
+
+  const handleInputFocus = () => {
+    if (searchInput.length >= 3) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => setShowSuggestions(false), 200);
   };
 
   const handleTrack = async (fullName: string) => {
@@ -162,6 +214,21 @@ export function SearchResults({ query, onTrack, onUntrack, onRefresh }: SearchRe
           <p className="text-sm text-gray-500 text-center max-w-md">
             {error}
           </p>
+          
+          {error.includes('rate limit') && (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4 max-w-md">
+              <h4 className="font-medium text-blue-900 mb-2">💡 Solution:</h4>
+              <p className="text-sm text-blue-800 mb-2">
+                GitHub API rate limit exceeded. To get higher limits:
+              </p>
+              <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1">
+                <li>Go to GitHub → Settings → Developer settings</li>
+                <li>Create a Personal Access Token</li>
+                <li>Add it to your .env.local file as GITHUB_TOKEN</li>
+              </ol>
+            </div>
+          )}
+          
           <Button
             variant="outline"
             onClick={() => searchRepositories(query, 1)}
@@ -216,12 +283,13 @@ export function SearchResults({ query, onTrack, onUntrack, onRefresh }: SearchRe
               watchers: result.watchers_count,
               avatar: result.owner.avatar_url,
               homepage: result.homepage,
-              topics: result.topics.join(','),
+              topics: Array.isArray(result.topics) ? result.topics.join(',') : result.topics || '',
               isPrivate: result.private,
               isArchived: result.archived,
               lastChecked: new Date(),
               createdAt: new Date(result.created_at),
               updatedAt: new Date(result.updated_at),
+              latestRelease: result.latestRelease,
             }}
             isTracked={result.isTracked}
             onTrack={() => handleTrack(result.full_name)}

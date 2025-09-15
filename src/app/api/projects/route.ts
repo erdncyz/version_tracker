@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { githubService } from '@/lib/github';
 import { prisma } from '@/lib/prisma';
 
@@ -11,11 +13,21 @@ export async function GET(request: NextRequest) {
     const language = searchParams.get('language');
     const sortBy = searchParams.get('sort') || 'updatedAt';
     const order = searchParams.get('order') || 'desc';
+    const userId = searchParams.get('userId');
 
     const skip = (page - 1) * limit;
 
     // Build where clause
     const where: any = {};
+    
+    // If userId is provided, only show projects tracked by that user
+    if (userId) {
+      where.trackedBy = {
+        some: {
+          id: userId
+        }
+      };
+    }
     
     if (search) {
       where.OR = [
@@ -42,7 +54,7 @@ export async function GET(request: NextRequest) {
         include: {
           versions: {
             orderBy: { publishedAt: 'desc' },
-            take: 1,
+            take: 5,
           },
           _count: {
             select: {
@@ -72,12 +84,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { fullName, userId } = body;
-
-    if (!fullName || !userId) {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Full name and user ID are required' },
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { fullName } = body;
+    const userId = session.user.id;
+
+    if (!fullName) {
+      return NextResponse.json(
+        { error: 'Full name is required' },
         { status: 400 }
       );
     }
@@ -120,7 +142,7 @@ export async function POST(request: NextRequest) {
           watchers: githubRepo.watchers_count,
           avatar: githubRepo.owner.avatar_url,
           homepage: githubRepo.homepage,
-          topics: githubRepo.topics,
+          topics: Array.isArray(githubRepo.topics) ? githubRepo.topics.join(',') : githubRepo.topics,
           isPrivate: githubRepo.private,
           isArchived: githubRepo.archived,
           trackedBy: {
@@ -139,18 +161,19 @@ export async function POST(request: NextRequest) {
       try {
         const releases = await githubService.getReleasesByFullName(fullName, 1, 20);
         
-        await prisma.version.createMany({
-          data: releases.map(release => ({
-            tagName: release.tag_name,
-            name: release.name,
-            body: release.body,
-            isPrerelease: release.prerelease,
-            isDraft: release.draft,
-            publishedAt: new Date(release.published_at || release.created_at),
-            projectId: project.id,
-          })),
-          skipDuplicates: true,
-        });
+        if (releases.length > 0) {
+          await prisma.version.createMany({
+            data: releases.map(release => ({
+              tagName: release.tag_name,
+              name: release.name,
+              body: release.body,
+              isPrerelease: release.prerelease,
+              isDraft: release.draft,
+              publishedAt: new Date(release.published_at || release.created_at),
+              projectId: project.id,
+            })),
+          });
+        }
       } catch (error) {
         console.error('Error fetching initial releases:', error);
         // Continue without failing the project creation

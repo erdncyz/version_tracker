@@ -49,8 +49,19 @@ class GitHubService {
   private octokit: Octokit;
 
   constructor(token?: string) {
+    const authToken = token || process.env.GITHUB_TOKEN;
+    
+    // Only add auth if token is provided and not placeholder
+    const authConfig = authToken && !authToken.includes('your_github_token_here') 
+      ? { auth: authToken } 
+      : {};
+    
     this.octokit = new Octokit({
-      auth: token || process.env.GITHUB_TOKEN,
+      ...authConfig,
+      // GitHub API rate limits: 60 requests/hour without auth, 5000/hour with auth
+      request: {
+        timeout: 10000, // 10 second timeout
+      },
     });
   }
 
@@ -77,11 +88,11 @@ class GitHubService {
           forks_count: repo.forks_count,
           watchers_count: repo.watchers_count,
           owner: {
-            avatar_url: repo.owner.avatar_url,
-            login: repo.owner.login,
+            avatar_url: repo.owner?.avatar_url || '',
+            login: repo.owner?.login || '',
           },
           homepage: repo.homepage,
-          topics: (repo.topics || []).join(','),
+          topics: repo.topics || [],
           private: repo.private,
           archived: repo.archived,
           created_at: repo.created_at,
@@ -89,9 +100,21 @@ class GitHubService {
           pushed_at: repo.pushed_at,
         })),
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error searching repositories:', error);
-      throw new Error('Failed to search repositories');
+      
+      // Provide more specific error messages
+      if (error.status === 403) {
+        throw new Error('GitHub API rate limit exceeded. Please try again later or add a GitHub token for higher limits.');
+      } else if (error.status === 401) {
+        throw new Error('GitHub API authentication failed. Please check your token.');
+      } else if (error.status === 422) {
+        throw new Error('Invalid search query. Please try a different search term.');
+      } else if (error.message?.includes('fetch')) {
+        throw new Error('Network error. Please check your internet connection.');
+      } else {
+        throw new Error(`GitHub API error: ${error.message || 'Unknown error'}`);
+      }
     }
   }
 
@@ -117,16 +140,26 @@ class GitHubService {
           login: repoData.owner.login,
         },
         homepage: repoData.homepage,
-        topics: (repoData.topics || []).join(','),
+        topics: repoData.topics || [],
         private: repoData.private,
         archived: repoData.archived,
         created_at: repoData.created_at,
         updated_at: repoData.updated_at,
         pushed_at: repoData.pushed_at,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching repository:', error);
-      throw new Error('Failed to fetch repository');
+      
+      // Handle rate limiting specifically
+      if (error.status === 403 && error.message?.includes('rate limit')) {
+        throw new Error('GitHub API rate limit exceeded. Please try again later or add a GitHub token for higher limits.');
+      } else if (error.status === 404) {
+        throw new Error('Repository not found. Please check the repository name and owner.');
+      } else if (error.status === 401) {
+        throw new Error('GitHub API authentication failed. Please check your token.');
+      } else {
+        throw new Error(`Failed to fetch repository: ${error.message || 'Unknown error'}`);
+      }
     }
   }
 
@@ -143,7 +176,7 @@ class GitHubService {
         id: release.id,
         tag_name: release.tag_name,
         name: release.name,
-        body: release.body,
+        body: release.body || null,
         prerelease: release.prerelease,
         draft: release.draft,
         published_at: release.published_at,
@@ -155,9 +188,19 @@ class GitHubService {
           size: asset.size,
         })),
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching releases:', error);
-      throw new Error('Failed to fetch releases');
+      
+      // Handle rate limiting specifically
+      if (error.status === 403 && error.message?.includes('rate limit')) {
+        throw new Error('GitHub API rate limit exceeded. Please try again later or add a GitHub token for higher limits.');
+      } else if (error.status === 404) {
+        throw new Error('Repository not found. Please check the repository name and owner.');
+      } else if (error.status === 401) {
+        throw new Error('GitHub API authentication failed. Please check your token.');
+      } else {
+        throw new Error(`Failed to fetch releases: ${error.message || 'Unknown error'}`);
+      }
     }
   }
 
@@ -173,7 +216,7 @@ class GitHubService {
         id: release.id,
         tag_name: release.tag_name,
         name: release.name,
-        body: release.body,
+        body: release.body || null,
         prerelease: release.prerelease,
         draft: release.draft,
         published_at: release.published_at,
@@ -185,10 +228,14 @@ class GitHubService {
           size: asset.size,
         })),
       };
-    } catch (error) {
+    } catch (error: any) {
       // If no releases found, return null
       if (error.status === 404) {
         return null;
+      }
+      if (error.status === 403) {
+        // Rate limit exceeded
+        throw new Error('GitHub API rate limit exceeded');
       }
       console.error('Error fetching latest release:', error);
       throw new Error('Failed to fetch latest release');
@@ -217,6 +264,42 @@ class GitHubService {
       throw new Error('Invalid repository full name format');
     }
     return this.getLatestRelease(owner, repo);
+  }
+
+  async getUserStarredRepositories(page: number = 1, perPage: number = 100): Promise<GitHubRepository[]> {
+    try {
+      const response = await this.octokit.rest.activity.listReposStarredByAuthenticatedUser({
+        page,
+        per_page: perPage,
+        sort: 'created',
+        direction: 'desc',
+      });
+
+      return response.data.map(repo => ({
+        id: repo.id,
+        name: repo.name,
+        full_name: repo.full_name,
+        description: repo.description,
+        language: repo.language,
+        stargazers_count: repo.stargazers_count,
+        forks_count: repo.forks_count,
+        watchers_count: repo.watchers_count,
+        owner: {
+          avatar_url: repo.owner.avatar_url,
+          login: repo.owner.login,
+        },
+        homepage: repo.homepage,
+        topics: repo.topics || [],
+        private: repo.private,
+        archived: repo.archived,
+        created_at: repo.created_at || '',
+        updated_at: repo.updated_at || '',
+        pushed_at: repo.pushed_at || '',
+      }));
+    } catch (error) {
+      console.error('Error fetching starred repositories:', error);
+      throw new Error('Failed to fetch starred repositories');
+    }
   }
 }
 
