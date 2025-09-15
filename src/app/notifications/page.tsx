@@ -203,7 +203,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <Header
         onSearch={() => {}}
         onAddProject={() => router.push('/dashboard')}
@@ -211,24 +211,24 @@ export default function NotificationsPage() {
       />
 
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-8">
           {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold flex items-center space-x-2">
-                <Bell className="h-8 w-8" />
-                <span>Notifications</span>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+                Notifications 🔔
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-lg text-gray-600">
                 Stay updated with your tracked projects
               </p>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               {unreadCount > 0 && (
                 <Button
                   onClick={markAllAsRead}
                   variant="outline"
                   size="sm"
+                  className="bg-white/80 backdrop-blur-sm border-gray-200 hover:bg-white shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Mark All Read
@@ -239,6 +239,7 @@ export default function NotificationsPage() {
                 variant="outline"
                 size="sm"
                 disabled={notifications.length === 0}
+                className="bg-white/80 backdrop-blur-sm border-gray-200 hover:bg-white shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Clear All
@@ -247,7 +248,7 @@ export default function NotificationsPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+          <div className="flex space-x-1 bg-white/80 backdrop-blur-sm border border-gray-200 p-1 rounded-xl shadow-lg w-fit">
             {[
               { key: 'all', label: 'All', count: notifications.length },
               { key: 'unread', label: 'Unread', count: unreadCount },
@@ -256,10 +257,10 @@ export default function NotificationsPage() {
               <button
                 key={key}
                 onClick={() => setFilter(key as any)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                   filter === key
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
                 {label} ({count})
@@ -273,20 +274,20 @@ export default function NotificationsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                  No notifications
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {filter === 'all' 
-                    ? "You don't have any notifications yet."
-                    : `No ${filter} notifications found.`
-                  }
-                </p>
-              </CardContent>
-            </Card>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg border border-gray-200 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Bell className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                No notifications
+              </h3>
+              <p className="text-gray-600">
+                {filter === 'all' 
+                  ? "You don't have any notifications yet. Start tracking projects to get notified of updates!"
+                  : `No ${filter} notifications found.`
+                }
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
               {filteredNotifications.map((notification) => (

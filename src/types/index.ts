@@ -99,7 +99,6 @@ export interface VersionComparison {
 export interface DashboardStats {
   totalProjects: number;
   totalVersions: number;
-  outdatedProjects: number;
   recentReleases: number;
   topLanguages: Array<{
     language: string;

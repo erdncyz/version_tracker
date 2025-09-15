@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, Package, AlertTriangle, Clock, Star, GitFork } from 'lucide-react';
+import { TrendingUp, Package, Clock, Star, GitFork } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
@@ -10,7 +10,6 @@ import { formatNumber, formatRelativeTime } from '@/lib/utils';
 interface DashboardStats {
   totalProjects: number;
   totalVersions: number;
-  outdatedProjects: number;
   recentReleases: number;
   topLanguages: Array<{
     language: string;
@@ -37,7 +36,6 @@ export function Dashboard({ projects }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({
     totalProjects: 0,
     totalVersions: 0,
-    outdatedProjects: 0,
     recentReleases: 0,
     topLanguages: [],
     recentActivity: [],
@@ -60,14 +58,6 @@ export function Dashboard({ projects }: DashboardProps) {
     const totalProjects = projects.length;
     const totalVersions = projects.reduce((sum, project) => sum + (project.versions?.length || 0), 0);
     
-    // Count outdated projects (projects with versions older than 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const outdatedProjects = projects.filter(project => {
-      const latestVersion = project.versions?.[0];
-      return latestVersion && new Date(latestVersion.publishedAt) < thirtyDaysAgo;
-    }).length;
 
     // Count recent releases (last 7 days)
     const sevenDaysAgo = new Date();
@@ -141,7 +131,6 @@ export function Dashboard({ projects }: DashboardProps) {
     setStats({
       totalProjects,
       totalVersions,
-      outdatedProjects,
       recentReleases,
       topLanguages,
       recentActivity,
@@ -243,12 +232,6 @@ export function Dashboard({ projects }: DashboardProps) {
           value={stats.totalVersions}
           icon={TrendingUp}
           color="green"
-        />
-        <StatCard
-          title="Outdated Projects"
-          value={stats.outdatedProjects}
-          icon={AlertTriangle}
-          color="red"
         />
         <StatCard
           title="Recent Releases"

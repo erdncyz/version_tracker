@@ -60,17 +60,24 @@ export function Header({ onSearch, onAddProject, unreadNotifications = 0 }: Head
     router.push('/notifications');
   };
 
+  const handleLogoClick = () => {
+    router.push('/dashboard');
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         {/* Logo and Title */}
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
+          <button 
+            onClick={handleLogoClick}
+            className="flex items-center space-x-2 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+          >
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
               <span className="text-white font-bold text-sm">VT</span>
             </div>
             <h1 className="text-xl font-bold">Version Tracker</h1>
-          </div>
+          </button>
         </div>
 
         {/* Search Bar */}

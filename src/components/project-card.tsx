@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatNumber, formatRelativeTime, getVersionType, getVersionColor } from '@/lib/utils';
 
-// Format release notes into readable bullet points
-function formatReleaseNotes(body: string): string[] {
+// Format release notes into readable content (HTML safe)
+function formatReleaseNotes(body: string): { type: 'html' | 'text', content: string }[] {
   if (!body) return [];
   
   // Clean up the text
@@ -22,7 +22,7 @@ function formatReleaseNotes(body: string): string[] {
   
   // Split by common patterns
   const lines = cleanBody.split('\n');
-  const notes: string[] = [];
+  const notes: { type: 'html' | 'text', content: string }[] = [];
   
   for (const line of lines) {
     const trimmed = line.trim();
@@ -32,8 +32,15 @@ function formatReleaseNotes(body: string): string[] {
       continue;
     }
     
+    // Check if line contains HTML content (images, links, etc.)
+    if (trimmed.includes('<img') || trimmed.includes('<a href') || trimmed.includes('&nbsp;')) {
+      // Keep HTML content as-is for rich display
+      if (trimmed.length < 300) {
+        notes.push({ type: 'html', content: trimmed });
+      }
+    }
     // Look for bullet points or numbered lists
-    if (trimmed.match(/^[-*•]\s+/)) {
+    else if (trimmed.match(/^[-*•]\s+/)) {
       let note = trimmed.replace(/^[-*•]\s+/, '');
       
       // Clean up markdown links: [text](url) -> text
@@ -49,7 +56,7 @@ function formatReleaseNotes(body: string): string[] {
       note = note.replace(/\s+/g, ' ').replace(/\(\s*\)/g, '').trim();
       
       if (note.length > 0 && note.length < 150) {
-        notes.push(note);
+        notes.push({ type: 'text', content: note });
       }
     }
     // Look for numbered lists
@@ -63,7 +70,7 @@ function formatReleaseNotes(body: string): string[] {
       note = note.replace(/\s+/g, ' ').replace(/\(\s*\)/g, '').trim();
       
       if (note.length > 0 && note.length < 150) {
-        notes.push(note);
+        notes.push({ type: 'text', content: note });
       }
     }
     // Look for lines that start with common change indicators
@@ -77,7 +84,7 @@ function formatReleaseNotes(body: string): string[] {
       note = note.replace(/\s+/g, ' ').replace(/\(\s*\)/g, '').trim();
       
       if (note.length < 150) {
-        notes.push(note);
+        notes.push({ type: 'text', content: note });
       }
     }
     
@@ -88,7 +95,7 @@ function formatReleaseNotes(body: string): string[] {
   // If no structured notes found, take first few sentences
   if (notes.length === 0) {
     const sentences = cleanBody.split(/[.!?]+/).filter(s => s.trim().length > 10);
-    notes.push(...sentences.slice(0, 2).map(s => s.trim()));
+    notes.push(...sentences.slice(0, 2).map(s => ({ type: 'text' as const, content: s.trim() })));
   }
   
   return notes.slice(0, 4);
@@ -133,6 +140,7 @@ export function ProjectCard({
   const [allReleases, setAllReleases] = useState<Release[]>([]);
   const [showAllReleases, setShowAllReleases] = useState(false);
   const [loadingReleases, setLoadingReleases] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   
   const latestVersion = project.versions?.[0];
   
@@ -201,6 +209,16 @@ export function ProjectCard({
     } finally {
       setLoadingReleases(false);
     }
+  };
+
+  const toggleNotesExpansion = (releaseId: string) => {
+    const newExpanded = new Set(expandedNotes);
+    if (newExpanded.has(releaseId)) {
+      newExpanded.delete(releaseId);
+    } else {
+      newExpanded.add(releaseId);
+    }
+    setExpandedNotes(newExpanded);
   };
 
   const versionType = latestVersion ? getVersionType(latestVersion.tagName) : 'stable';
@@ -327,51 +345,100 @@ export function ProjectCard({
                   ) : showAllReleases ? (
                     <>
                       <ChevronUp className="h-3 w-3 mr-1" />
-                      Hide
+                      Hide Releases
                     </>
                   ) : (
                     <>
                       <ChevronDown className="h-3 w-3 mr-1" />
-                      Show All
+                      Show All Releases
                     </>
                   )}
                 </Button>
               </div>
             </div>
             
-            {/* Latest Release Notes - Compact */}
-            {isGitHubRelease(displayRelease) && displayRelease.body && (
+            {/* Latest Release Notes - Always Show */}
+            {((isGitHubRelease(displayRelease) && displayRelease.body) || (latestVersion && latestVersion.body)) ? (
               <div className="bg-blue-50 rounded-md p-2 text-xs border border-blue-200">
                 <div className="flex items-start space-x-2">
                   <FileText className="h-3 w-3 mt-0.5 text-blue-500 flex-shrink-0" />
                   <div className="flex-1">
                     <div className="font-medium text-blue-800 mb-1">Release Notes:</div>
                     <div className="space-y-1">
-                      {formatReleaseNotes(displayRelease.body).slice(0, 2).map((note, index) => (
-                        <div key={index} className="flex items-start space-x-1">
-                          <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
-                          <span className="text-blue-700 leading-relaxed text-xs">{note}</span>
-                        </div>
-                      ))}
-                      {formatReleaseNotes(displayRelease.body).length > 2 && (
-                        <div className="text-blue-600 text-xs">
-                          +{formatReleaseNotes(displayRelease.body).length - 2} more changes...
-                        </div>
-                      )}
+                      {(() => {
+                        const releaseBody = isGitHubRelease(displayRelease) ? displayRelease.body : latestVersion?.body;
+                        if (!releaseBody) return null;
+                        
+                        return expandedNotes.has('latest') ? (
+                          <div 
+                            className="text-blue-700 leading-relaxed text-xs prose prose-xs max-w-none [&_img]:inline [&_img]:h-4 [&_img]:w-4 [&_img]:mr-1 [&_img]:align-middle [&_a]:text-blue-600 [&_a]:hover:text-blue-800 [&_a]:underline"
+                            dangerouslySetInnerHTML={{ __html: releaseBody }}
+                          />
+                        ) : (
+                          formatReleaseNotes(releaseBody).slice(0, 2).map((note, index) => (
+                            <div key={index} className="flex items-start space-x-1">
+                              <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
+                              <div className="text-blue-700 leading-relaxed text-xs">
+                                {note.type === 'html' ? (
+                                  <div 
+                                    className="prose prose-xs max-w-none [&_img]:inline [&_img]:h-4 [&_img]:w-4 [&_img]:mr-1 [&_img]:align-middle [&_a]:text-blue-600 [&_a]:hover:text-blue-800 [&_a]:underline"
+                                    dangerouslySetInnerHTML={{ __html: note.content }}
+                                  />
+                                ) : (
+                                  <span>{note.content}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        );
+                      })()}
+                      {(() => {
+                        const releaseBody = isGitHubRelease(displayRelease) ? displayRelease.body : latestVersion?.body;
+                        if (!releaseBody || formatReleaseNotes(releaseBody).length <= 2) return null;
+                        
+                        return (
+                          <div className="flex items-center justify-between mt-2 pt-1 border-t border-blue-200">
+                            <button
+                              onClick={() => toggleNotesExpansion('latest')}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center space-x-1"
+                            >
+                              {expandedNotes.has('latest') ? (
+                                <>
+                                  <ChevronUp className="h-3 w-3" />
+                                  <span>Show summary</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3 w-3" />
+                                  <span>Show full notes</span>
+                                </>
+                              )}
+                            </button>
+                            {isGitHubRelease(displayRelease) && displayRelease.html_url && (
+                              <a
+                                href={displayRelease.html_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                <span>View full</span>
+                                <ExternalLinkIcon className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
-                    {displayRelease.html_url && (
-                      <div className="mt-2 pt-1 border-t border-blue-200">
-                        <a
-                          href={displayRelease.html_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          <span>View full notes</span>
-                          <ExternalLinkIcon className="h-3 w-3" />
-                        </a>
-                      </div>
-                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-md p-2 text-xs border border-gray-200">
+                <div className="flex items-start space-x-2">
+                  <FileText className="h-3 w-3 mt-0.5 text-gray-400 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-600 mb-1">Release Notes:</div>
+                    <div className="text-gray-500 italic">No release notes available for this version</div>
                   </div>
                 </div>
               </div>
@@ -379,11 +446,11 @@ export function ProjectCard({
 
             {/* All Releases */}
             {showAllReleases && allReleases.length > 0 && (
-              <div className="bg-blue-50 rounded-md p-3 text-xs border border-blue-200">
+              <div className="bg-blue-50 rounded-md p-3 text-xs border border-blue-200 mt-3">
                 <div className="flex items-center justify-between mb-3">
                   <div className="font-semibold text-blue-800 text-sm flex items-center space-x-2">
                     <Tag className="h-4 w-4" />
-                    <span>Release History</span>
+                    <span>All Releases with Notes</span>
                   </div>
                   <div className="text-blue-600 text-xs bg-blue-100 px-2 py-1 rounded">
                     {allReleases.length} release{allReleases.length !== 1 ? 's' : ''}
@@ -428,7 +495,7 @@ export function ProjectCard({
                         </div>
                       )}
 
-                      {/* Release Notes - Compact */}
+                      {/* Release Notes - Expandable */}
                       {release.body && (
                         <div className="text-gray-700">
                           <div className="text-sm font-medium text-gray-800 mb-1 flex items-center space-x-2">
@@ -437,31 +504,60 @@ export function ProjectCard({
                           </div>
                           <div className="bg-gray-50 p-2 rounded border">
                             <div className="space-y-1">
-                              {formatReleaseNotes(release.body).slice(0, 2).map((note, noteIndex) => (
-                                <div key={noteIndex} className="flex items-start space-x-1">
-                                  <span className="text-blue-500 mt-0.5 flex-shrink-0 text-xs">•</span>
-                                  <span className="text-gray-700 leading-relaxed text-xs line-clamp-2">{note}</span>
-                                </div>
-                              ))}
+                              {expandedNotes.has(release.id.toString()) ? (
+                                <div 
+                                  className="text-gray-700 leading-relaxed text-xs prose prose-xs max-w-none [&_img]:inline [&_img]:h-4 [&_img]:w-4 [&_img]:mr-1 [&_img]:align-middle [&_a]:text-blue-600 [&_a]:hover:text-blue-800 [&_a]:underline"
+                                  dangerouslySetInnerHTML={{ __html: release.body }}
+                                />
+                              ) : (
+                                formatReleaseNotes(release.body).slice(0, 2).map((note, noteIndex) => (
+                                  <div key={noteIndex} className="flex items-start space-x-1">
+                                    <span className="text-blue-500 mt-0.5 flex-shrink-0 text-xs">•</span>
+                                    <div className="text-gray-700 leading-relaxed text-xs">
+                                      {note.type === 'html' ? (
+                                        <div 
+                                          className="prose prose-xs max-w-none [&_img]:inline [&_img]:h-4 [&_img]:w-4 [&_img]:mr-1 [&_img]:align-middle [&_a]:text-blue-600 [&_a]:hover:text-blue-800 [&_a]:underline"
+                                          dangerouslySetInnerHTML={{ __html: note.content }}
+                                        />
+                                      ) : (
+                                        <span>{note.content}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                               {formatReleaseNotes(release.body).length > 2 && (
-                                <div className="text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
-                                  +{formatReleaseNotes(release.body).length - 2} more changes...
+                                <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-200">
+                                  <button
+                                    onClick={() => toggleNotesExpansion(release.id.toString())}
+                                    className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center space-x-1"
+                                  >
+                                    {expandedNotes.has(release.id.toString()) ? (
+                                      <>
+                                        <ChevronUp className="h-3 w-3" />
+                                        <span>Show summary</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="h-3 w-3" />
+                                        <span>Show full notes</span>
+                                      </>
+                                    )}
+                                  </button>
+                                  {release.html_url && (
+                                    <a
+                                      href={release.html_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                    >
+                                      <span>View full</span>
+                                      <ExternalLinkIcon className="h-3 w-3" />
+                                    </a>
+                                  )}
                                 </div>
                               )}
                             </div>
-                            {release.html_url && (
-                              <div className="mt-2 flex justify-end">
-                                <a
-                                  href={release.html_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                >
-                                  <span>View full</span>
-                                  <ExternalLinkIcon className="h-3 w-3" />
-                                </a>
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}

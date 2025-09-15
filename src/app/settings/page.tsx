@@ -132,7 +132,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <Header
         onSearch={() => {}}
         onAddProject={() => router.push('/dashboard')}
@@ -144,10 +144,12 @@ export default function SettingsPage() {
           {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Settings</h1>
-              <p className="text-gray-600 mt-2">Manage your account and application preferences</p>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+                Settings ⚙️
+              </h1>
+              <p className="text-lg text-gray-600">Manage your account and application preferences</p>
             </div>
-            <Badge variant="outline" className="flex items-center space-x-2">
+            <Badge variant="outline" className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm border-gray-200 shadow-lg">
               <User className="h-4 w-4" />
               <span>{session.user?.name || session.user?.email}</span>
             </Badge>
@@ -157,10 +159,12 @@ export default function SettingsPage() {
             {/* Main Settings */}
             <div className="lg:col-span-2 space-y-6">
               {/* Account Settings */}
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-gray-200 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <User className="h-5 w-5" />
+                    <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
                     <span>Account</span>
                   </CardTitle>
                   <CardDescription>
@@ -169,12 +173,12 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center space-x-4">
-                    <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="h-6 w-6 text-gray-500" />
+                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                      <User className="h-8 w-8 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{session.user?.name || 'User'}</h3>
-                      <p className="text-sm text-gray-500">{session.user?.email}</p>
+                      <h3 className="text-lg font-semibold text-gray-900">{session.user?.name || 'User'}</h3>
+                      <p className="text-gray-600">{session.user?.email}</p>
                     </div>
                   </div>
                   
@@ -222,10 +226,12 @@ export default function SettingsPage() {
 
 
               {/* Data Management */}
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-gray-200 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Database className="h-5 w-5" />
+                    <div className="h-8 w-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                      <Database className="h-4 w-4 text-white" />
+                    </div>
                     <span>Data Management</span>
                   </CardTitle>
                   <CardDescription>
@@ -243,6 +249,7 @@ export default function SettingsPage() {
                       disabled={loading}
                       variant="destructive"
                       size="sm"
+                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Clear Data
@@ -255,10 +262,12 @@ export default function SettingsPage() {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Stats */}
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-gray-200 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Info className="h-5 w-5" />
+                    <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                      <Info className="h-4 w-4 text-white" />
+                    </div>
                     <span>Statistics</span>
                   </CardTitle>
                 </CardHeader>
@@ -283,15 +292,20 @@ export default function SettingsPage() {
               </Card>
 
               {/* Quick Actions */}
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-gray-200 shadow-lg">
                 <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
+                  <CardTitle className="flex items-center space-x-2">
+                    <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <Search className="h-4 w-4 text-white" />
+                    </div>
+                    <span>Quick Actions</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button
                     onClick={() => router.push('/dashboard')}
                     variant="outline"
-                    className="w-full justify-start"
+                    className="w-full justify-start bg-white/50 hover:bg-white border-gray-200 shadow-sm hover:shadow-md transition-all duration-300"
                   >
                     <User className="h-4 w-4 mr-2" />
                     Go to Dashboard
@@ -299,7 +313,7 @@ export default function SettingsPage() {
                   <Button
                     onClick={() => router.push('/dashboard?tab=search')}
                     variant="outline"
-                    className="w-full justify-start"
+                    className="w-full justify-start bg-white/50 hover:bg-white border-gray-200 shadow-sm hover:shadow-md transition-all duration-300"
                   >
                     <Search className="h-4 w-4 mr-2" />
                     Search Projects
