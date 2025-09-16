@@ -1,11 +1,9 @@
 import { NextAuthOptions } from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -28,8 +26,10 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // For now, we'll skip password verification since we removed GitHub login
-        // In a real app, you'd want to implement proper password authentication
+        // Check password with bcrypt
+        if (user.password && !(await bcrypt.compare(credentials.password, user.password))) {
+          return null
+        }
 
         return {
           id: user.id,

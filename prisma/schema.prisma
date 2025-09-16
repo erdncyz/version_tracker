@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,22 +8,19 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  avatar        String?
-  password      String?   // For credentials authentication
-  emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // NextAuth.js relations
-  accounts Account[]
-  sessions Session[]
-
-  // App relations
-  trackedProjects Project[] @relation("UserTrackedProjects")
-  notifications   Notification[]
+  id                    String                  @id @default(cuid())
+  email                 String                  @unique
+  name                  String?
+  avatar                String?
+  password              String?
+  emailVerified         DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  accounts              Account[]
+  notifications         Notification[]
+  sessions              Session[]
+  user_project_versions user_project_versions[]
+  trackedProjects       Project[]               @relation("UserTrackedProjects")
 
   @@map("users")
 }
@@ -44,8 +38,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -71,45 +64,43 @@ model VerificationToken {
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  fullName    String   @unique // e.g., "SeleniumHQ/selenium"
-  description String?
-  language    String?
-  stars       Int      @default(0)
-  forks       Int      @default(0)
-  watchers    Int      @default(0)
-  avatar      String?
-  homepage    String?
-  topics      String?  // Comma-separated topics/tags
-  isPrivate   Boolean  @default(false)
-  isArchived  Boolean  @default(false)
-  lastChecked DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  versions      Version[]
-  trackedBy     User[]    @relation("UserTrackedProjects")
-  notifications Notification[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  fullName              String                  @unique
+  description           String?
+  language              String?
+  stars                 Int                     @default(0)
+  forks                 Int                     @default(0)
+  watchers              Int                     @default(0)
+  avatar                String?
+  homepage              String?
+  topics                String?
+  isPrivate             Boolean                 @default(false)
+  isArchived            Boolean                 @default(false)
+  lastChecked           DateTime                @default(now())
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  notifications         Notification[]
+  user_project_versions user_project_versions[]
+  versions              Version[]
+  trackedBy             User[]                  @relation("UserTrackedProjects")
 
   @@map("projects")
 }
 
 model Version {
-  id          String   @id @default(cuid())
-  tagName     String   // e.g., "v4.15.0"
-  name        String?  // Release name
-  body        String?  // Release description/changelog
-  isPrerelease Boolean @default(false)
-  isDraft     Boolean  @default(false)
-  publishedAt DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id                    String                  @id @default(cuid())
+  tagName               String
+  name                  String?
+  body                  String?
+  isPrerelease          Boolean                 @default(false)
+  isDraft               Boolean                 @default(false)
+  publishedAt           DateTime
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  projectId             String
+  user_project_versions user_project_versions[]
+  project               Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, tagName])
   @@map("versions")
@@ -119,15 +110,13 @@ model Notification {
   id        String   @id @default(cuid())
   title     String
   message   String
-  type      String   // "new_release", "update", "error"
+  type      String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-
-  // Relations
   userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
@@ -141,4 +130,18 @@ model ApiKey {
   updatedAt DateTime @updatedAt
 
   @@map("api_keys")
+}
+
+model user_project_versions {
+  id        String   @id
+  userId    String
+  projectId String
+  versionId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  versions  Version  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  projects  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  users     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
 }
