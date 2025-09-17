@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { githubService } from '@/lib/github';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const page = parseInt(searchParams.get('page') || '1');
@@ -32,13 +43,18 @@ export async function GET(request: NextRequest) {
     // Search repositories on GitHub
     const searchResult = await githubService.searchRepositories(githubQuery, page, perPage);
 
-    // Check which repositories are already tracked
+    // Check which repositories are already tracked by this user
     const fullNames = searchResult.items.map(repo => repo.full_name);
     const trackedProjects = await prisma.project.findMany({
       where: {
         fullName: {
           in: fullNames,
         },
+        trackedBy: {
+          some: {
+            id: session.user.id
+          }
+        }
       },
       select: {
         fullName: true,

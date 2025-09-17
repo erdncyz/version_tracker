@@ -18,6 +18,7 @@ GitHub API entegrasyonu ile üçüncü parti kütüphane versiyonlarını takip 
 - Smart suggestions with 3+ character input / 3+ karakter girişi ile akıllı öneriler
 - Popular repositories auto-suggestions / Popüler depolar otomatik öneriler
 - Real-time search results / Gerçek zamanlı arama sonuçları
+- **User-specific tracking status** - See which projects you're already tracking / Hangi projeleri zaten takip ettiğinizi görün
 
 ### 📊 **Version Tracking / Versiyon Takibi**
 - Track releases and version changes / Sürümleri ve versiyon değişikliklerini takip edin
@@ -349,8 +350,24 @@ model Notification {
 ### Security Features / Güvenlik Özellikleri
 - Password hashing with bcryptjs / bcryptjs ile şifre hashleme
 - JWT tokens for session management / Oturum yönetimi için JWT token'ları
+- **Database validation** - User existence verified on each request / Her istekte kullanıcı varlığı doğrulanır
+- **User-specific data isolation** - Projects and data are user-specific / Projeler ve veriler kullanıcı özelinde
 - CSRF protection / CSRF koruması
 - Rate limiting on API endpoints / API uç noktalarında hız sınırlama
+
+---
+
+## 🔒 Recent Security Updates / Son Güvenlik Güncellemeleri
+
+### User-Specific Project Tracking / Kullanıcı Özelinde Proje Takibi
+- **Fixed**: Projects now show correct tracking status per user / Projeler artık kullanıcı başına doğru takip durumunu gösteriyor
+- **Enhanced**: Search API now requires authentication and filters by user / Arama API'si artık kimlik doğrulama gerektiriyor ve kullanıcıya göre filtreliyor
+- **Improved**: Database validation ensures user sessions are invalidated when user is deleted / Veritabanı doğrulaması kullanıcı silindiğinde oturumların geçersiz kılınmasını sağlıyor
+
+### Authentication Improvements / Kimlik Doğrulama İyileştirmeleri
+- **JWT Callback**: Added user existence validation on each token access / Her token erişiminde kullanıcı varlığı doğrulaması eklendi
+- **Session Callback**: Enhanced session validation with database checks / Veritabanı kontrolleri ile gelişmiş oturum doğrulaması
+- **Middleware**: Strengthened route protection with stricter token validation / Daha sıkı token doğrulaması ile güçlendirilmiş rota koruması
 
 ---
 
