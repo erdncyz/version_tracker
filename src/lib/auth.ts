@@ -48,10 +48,33 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
       }
+      
+      // Validate user exists on each JWT token access
+      if (token.id) {
+        const user = await prisma.user.findUnique({
+          where: { id: token.id as string }
+        })
+        
+        if (!user) {
+          // User no longer exists, throw error to invalidate token
+          throw new Error("User no longer exists")
+        }
+      }
+      
       return token
     },
     async session({ session, token }) {
       if (token) {
+        // Validate that the user still exists in the database
+        const user = await prisma.user.findUnique({
+          where: { id: token.id as string }
+        })
+        
+        if (!user) {
+          // User no longer exists, throw error to invalidate session
+          throw new Error("User no longer exists")
+        }
+        
         session.user.id = token.id as string
       }
       return session

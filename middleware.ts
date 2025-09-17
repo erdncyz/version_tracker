@@ -1,4 +1,5 @@
 import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
 
 export default withAuth(
   function middleware(req) {
@@ -22,8 +23,17 @@ export default withAuth(
           return true
         }
         
-        // Require token for all other pages (dashboard, projects, etc.)
-        return !!token
+        // Require valid token for all other pages (dashboard, projects, etc.)
+        if (!token) {
+          return false
+        }
+        
+        // If token exists but user ID is missing, redirect to signin
+        if (!token.id) {
+          return false
+        }
+        
+        return true
       },
     },
   }
